@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --surface-2: #f1f1ee;
+    --border: #e4e4df;
+    --text: #1c1c1a;
+    --muted: #6b6b66;
+    --accent: #3b5bdb;
+    --accent-soft: #e8edff;
+    --ok: #2b8a3e;
+    --ok-soft: #e6f4ea;
+    --warn: #b35c00;
+    --warn-soft: #fff4e0;
+    --err: #c92a2a;
+    --err-soft: #ffe8e8;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --surface: #1b1b1b;
+      --surface-2: #242424;
+      --border: #2e2e2e;
+      --text: #ececea;
+      --muted: #9a9a95;
+      --accent: #7c95ff;
+      --accent-soft: #1e2440;
+      --ok: #69db7c;
+      --ok-soft: #16301c;
+      --warn: #ffb454;
+      --warn-soft: #33260f;
+      --err: #ff8787;
+      --err-soft: #3a1717;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 16px 80px; }
+  header h1 { font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
+  header p { color: var(--muted); margin: 0 0 28px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .ask { padding: 16px; }
+  textarea {
+    width: 100%; min-height: 84px; resize: vertical; border: 0; outline: 0;
+    background: transparent; color: var(--text); font: inherit; font-size: 16px;
+  }
+  textarea::placeholder { color: var(--muted); }
+  .ask-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 13px; margin-right: auto; }
+  kbd {
+    font: 12px Inter, sans-serif; padding: 1px 6px; border-radius: 4px;
+    border: 1px solid var(--border); background: var(--surface-2);
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    padding: 8px 14px;
+  }
+  button:hover { background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 9px 20px; }
+  button.primary:hover { filter: brightness(1.08); background: var(--accent); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .chip {
+    font-size: 13px; font-weight: 500; padding: 5px 12px; border-radius: 999px;
+    color: var(--muted); background: transparent;
+  }
+  .chip:hover { color: var(--text); }
+
+  /* Progress */
+  #progress { margin-top: 24px; padding: 18px 20px; display: none; }
+  .progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .progress-head strong { font-size: 14px; }
+  #timer { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .step { display: flex; gap: 12px; padding: 7px 0; color: var(--muted); }
+  .step .dot {
+    flex: none; width: 20px; height: 20px; border-radius: 50%; margin-top: 2px;
+    border: 2px solid var(--border); display: grid; place-items: center; font-size: 11px;
+  }
+  .step.active { color: var(--text); }
+  .step.active .dot { border-color: var(--accent); border-top-color: transparent; animation: spin .9s linear infinite; }
+  .step.done { color: var(--text); }
+  .step.done .dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .step.done .dot::after { content: "✓"; }
+  .step .label { font-weight: 500; }
+  .step .sub { font-size: 13px; color: var(--muted); margin: 4px 0 0; padding-left: 18px; }
+  .step .sub li { margin: 2px 0; }
+  .step .note { font-size: 13px; color: var(--muted); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error {
+    margin-top: 24px; padding: 14px 16px; border-radius: 10px;
+    background: var(--err-soft); color: var(--err); display: none;
+  }
+
+  /* Result */
+  #result { margin-top: 24px; display: none; }
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .toolbar .q { font-weight: 600; margin-right: auto; font-size: 14px; }
+  .badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .toolbar button { font-size: 13px; padding: 5px 12px; }
+
+  .report {
+    padding: 8px 32px 28px;
+    font-family: "Source Serif 4", Georgia, serif; font-size: 17px; line-height: 1.7;
+  }
+  .report h1, .report h2, .report h3 { font-family: Inter, sans-serif; letter-spacing: -0.01em; line-height: 1.3; }
+  .report h1 { font-size: 24px; } .report h2 { font-size: 19px; margin-top: 32px; } .report h3 { font-size: 16px; }
+  .report hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+  .report a { color: var(--accent); }
+  .table-scroll { overflow-x: auto; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; font-family: Inter, sans-serif; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--surface-2); font-weight: 600; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  details { border-top: 1px solid var(--border); }
+  summary {
+    cursor: pointer; padding: 14px 20px; font-weight: 600; font-size: 14px;
+    list-style: none; display: flex; justify-content: space-between;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--muted); font-weight: 400; }
+  details[open] summary::after { content: "–"; }
+  .panel { padding: 0 20px 18px; font-size: 14px; }
+  .finding { background: var(--surface-2); border-radius: 8px; padding: 4px 14px; margin-bottom: 10px; }
+
+  @media (max-width: 600px) {
+    .wrap { padding-top: 28px; }
+    .report { padding: 4px 18px 20px; font-size: 16px; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Research Agent</h1>
+    <p>A planner splits your question, researchers search the web in parallel, a critic checks the findings, and a writer drafts a report that is fact-checked before you see it.</p>
+  </header>
+
+  <div class="card ask">
+    <textarea id="question" placeholder="Ask a research question…"></textarea>
+    <div class="ask-foot">
+      <span class="hint"><kbd>⌘</kbd> + <kbd>Enter</kbd> to run · usually 1–2 minutes</span>
+      <button id="run" class="primary">Generate report</button>
+    </div>
+  </div>
+  <div class="examples" id="examples">
+    <button class="chip">Should a seed-stage startup use AWS, GCP, or Azure?</button>
+    <button class="chip">What are the tradeoffs of LangGraph vs CrewAI?</button>
+    <button class="chip">Is solid-state battery tech close to mass production?</button>
+  </div>
+
+  <div id="error" class="error"></div>
+
+  <div id="progress" class="card">
+    <div class="progress-head"><strong id="progress-title">Working…</strong><span id="timer">0s</span></div>
+    <ol class="steps">
+      <li class="step" data-step="planner"><span class="dot"></span><div><div class="label">Planning sub-questions</div><ul class="sub" id="subqs"></ul></div></li>
+      <li class="step" data-step="researcher"><span class="dot"></span><div><div class="label">Searching the web</div><div class="note" id="research-note"></div></div></li>
+      <li class="step" data-step="critic"><span class="dot"></span><div><div class="label">Reviewing findings</div></div></li>
+      <li class="step" data-step="writer"><span class="dot"></span><div><div class="label">Writing report</div><div class="note" id="writer-note"></div></div></li>
+      <li class="step" data-step="report_critic"><span class="dot"></span><div><div class="label">Fact-checking report</div><div class="note" id="check-note"></div></div></li>
+    </ol>
+  </div>
+
+  <div id="result" class="card">
+    <div class="toolbar">
+      <span class="q" id="result-q"></span>
+      <span class="badge" id="badge"></span>
+      <button id="copy">Copy Markdown</button>
+      <button id="download">Download</button>
+    </div>
+    <article class="report" id="report"></article>
+    <details id="critique-box"><summary>Final quality check</summary><div class="panel" id="critique"></div></details>
+    <details><summary id="findings-title">Research findings</summary><div class="panel" id="findings"></div></details>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ORDER = ["planner", "researcher", "critic", "writer", "report_critic"];
+let timerId = null, lastResult = null, lastQuestion = "";
+
+$("examples").addEventListener("click", (e) => {
+  if (e.target.classList.contains("chip")) { $("question").value = e.target.textContent; $("question").focus(); }
+});
+$("question").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runResearch();
+});
+$("run").addEventListener("click", runResearch);
+
+function setStep(name, state) {
+  const el = document.querySelector(`.step[data-step="${name}"]`);
+  el.classList.remove("active", "done");
+  if (state) el.classList.add(state);
+}
+function activate(name) {
+  // Mark every earlier step done and this one active.
+  const idx = ORDER.indexOf(name);
+  ORDER.forEach((s, i) => setStep(s, i < idx ? "done" : i === idx ? "active" : null));
+}
+function resetUI() {
+  ORDER.forEach((s) => setStep(s, null));
+  ["subqs", "research-note", "writer-note", "check-note"].forEach((id) => ($(id).innerHTML = ""));
+  $("error").style.display = "none";
+  $("result").style.display = "none";
+  $("progress").style.display = "block";
+  $("progress-title").textContent = "Working…";
+}
+function showError(msg) {
+  $("error").textContent = msg;
+  $("error").style.display = "block";
+  $("progress").style.display = "none";
+}
+function wrapTables(html) {
+  return html.replace(/<table>/g, '<div class="table-scroll"><table>').replace(/<\/table>/g, "</table></div>");
+}
+
+async function runResearch() {
+  const question = $("question").value.trim();
+  if (question.length < 3 || $("run").disabled) return;
+  lastQuestion = question;
+  resetUI();
+  $("run").disabled = true;
+  const started = Date.now();
+  $("timer").textContent = "0s";
+  timerId = setInterval(() => ($("timer").textContent = Math.round((Date.now() - started) / 1000) + "s"), 1000);
+  activate("planner");
+
+  let researchDone = 0, totalResearch = 0, writes = 0;
+  try {
+    const res = await fetch("/research/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Server returned ${res.status}: ${body.slice(0, 300)}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "", finished = false;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "error") throw new Error(ev.message);
+        if (ev.type === "done") { finished = true; renderResult(ev); continue; }
+
+        switch (ev.node) {
+          case "planner":
+            totalResearch = ev.sub_questions.length;
+            $("subqs").innerHTML = ev.sub_questions.map((q) => `<li>${escapeHtml(q)}</li>`).join("");
+            activate("researcher");
+            $("research-note").textContent = `0 of ${totalResearch} done`;
+            break;
+          case "researcher":
+            researchDone++;
+            $("research-note").textContent = `${researchDone} of ${totalResearch} done`;
+            if (researchDone >= totalResearch) activate("critic");
+            break;
+          case "critic":
+            activate("writer");
+            break;
+          case "writer":
+            writes++;
+            if (writes > 1) $("writer-note").textContent = `Revision ${writes - 1} done`;
+            activate("report_critic");
+            break;
+          case "report_critic":
+            $("check-note").textContent = ev.passed
+              ? "No issues found"
+              : ev.revision_count >= 2 ? "Some issues remain (revision limit reached)" : "Issues found, sending back for revision…";
+            if (!ev.passed && ev.revision_count < 2) activate("writer");
+            break;
+        }
+      }
+    }
+    if (!finished) throw new Error("The connection closed before the report was finished. Check the server logs.");
+  } catch (e) {
+    showError("Something went wrong: " + (e.message || e));
+  } finally {
+    clearInterval(timerId);
+    $("run").disabled = false;
+  }
+}
+
+function renderResult(data) {
+  lastResult = data;
+  ORDER.forEach((s) => setStep(s, "done"));
+  $("progress-title").textContent = "Done";
+  $("result-q").textContent = lastQuestion;
+  $("report").innerHTML = wrapTables(data.report_html);
+  $("critique").innerHTML = wrapTables(data.critique_html);
+  $("findings-title").textContent = `Research findings (${data.findings_html.length})`;
+  $("findings").innerHTML = data.findings_html.map((f) => `<div class="finding">${f}</div>`).join("");
+  $("report").querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+
+  const passed = /NO ISSUES FOUND/.test($("critique").textContent);
+  $("badge").className = "badge " + (passed ? "ok" : "warn");
+  $("badge").textContent = passed ? "Fact-check passed" : "Review notes";
+  $("critique-box").open = !passed;
+  $("result").style.display = "block";
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+$("copy").addEventListener("click", async () => {
+  if (!lastResult) return;
+  await navigator.clipboard.writeText(lastResult.report_md);
+  $("copy").textContent = "Copied";
+  setTimeout(() => ($("copy").textContent = "Copy Markdown"), 1500);
+});
+$("download").addEventListener("click", () => {
+  if (!lastResult) return;
+  const blob = new Blob([`# ${lastQuestion}\n\n${lastResult.report_md}`], { type: "text/markdown" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "research-report.md";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>
